@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculator</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:white;color:black;margin:0;padding:15px}
+h1{font-size:25px;font-weight:500;margin:5px 0 18px}
+.app{min-width:0}
+nav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+button,select{font-family:Arial;font-size:15px;background:white;color:black;border:1px solid #bbb;padding:9px}
+button:active{background:#eee}
+.page{display:none}
+.page.active{display:block}
+.calc{max-width:430px}
+#display{width:100%;height:55px;border:1px solid #bbb;text-align:right;font-size:25px;padding:10px;margin-bottom:8px}
+.keys{display:flex;flex-wrap:wrap;gap:5px}
+.keys button{width:calc((100% - 15px)/4);height:48px;font-size:18px}
+.formula-tools{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}
+#search{flex:1;min-width:150px;border:0;border-bottom:1px solid black;border-radius:0;background:transparent;outline:none;padding:8px;font-size:16px}
+.formula{border-bottom:1px solid #ddd;padding:13px 0}
+.formula-head{display:block;margin-bottom:10px}
+.formula-name{font-size:16px;font-weight:500;display:block;margin-bottom:10px}
+.equation{font-size:17px;display:flex;align-items:baseline;gap:3px;flex-wrap:wrap;line-height:2.2}
+.equation input,.conversion input{display:inline-block;width:48px;min-width:35px;max-width:110px;height:25px;border:0;border-bottom:1px solid black;border-radius:0;background:transparent;outline:none;text-align:center;padding:2px 4px;font-family:Arial;font-size:16px;color:black;caret-color:black;pointer-events:auto;position:relative;z-index:2;touch-action:manipulation;user-select:text;-webkit-user-select:text;-webkit-appearance:none;appearance:none}
+.equation input::placeholder{color:rgba(0,0,0,.28);opacity:1}
+.conversion input::placeholder{color:rgba(0,0,0,.35);opacity:1}
+.equation input:focus,.conversion input:focus{border-bottom:2px solid black;background:#f7f7f7}
+.formula button{margin-top:10px}
+.result{font-size:16px;margin-top:9px}
+.conversion{padding:13px 0;border-bottom:1px solid #ddd}
+.conversion h3{font-size:16px;font-weight:500;margin-bottom:10px}
+.conversion input{width:85px;min-width:85px;text-align:left}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Calculator</h1>
+<nav>
+<button onclick="showPage('calculator')">Calculator</button>
+<button onclick="showPage('formulas')">Formulas</button>
+<button onclick="showPage('conversions')">Conversions</button>
+</nav>
+<section id="calculator" class="page active">
+<div class="calc">
+<input id="display" type="text" readonly>
+<div class="keys">
+<button onclick="clearCalc()">AC</button><button onclick="delCalc()">DEL</button><button onclick="key('/')">÷</button><button onclick="key('*')">×</button>
+<button onclick="key('7')">7</button><button onclick="key('8')">8</button><button onclick="key('9')">9</button><button onclick="key('-')">−</button>
+<button onclick="key('4')">4</button><button onclick="key('5')">5</button><button onclick="key('6')">6</button><button onclick="key('+')">+</button>
+<button onclick="key('1')">1</button><button onclick="key('2')">2</button><button onclick="key('3')">3</button><button onclick="calculate()">=</button>
+<button onclick="key('0')">0</button><button onclick="key('.')">.</button><button onclick="key('(')">(</button><button onclick="key(')')">)</button>
+<button onclick="key('Math.PI')">π</button><button onclick="key('Math.sqrt(')">√</button><button onclick="key('**2')">x²</button><button onclick="key('/100')">%</button>
+</div>
+</div>
+</section>
+<section id="formulas" class="page">
+<div class="formula-tools">
+<input id="search" placeholder="Search formulas" oninput="renderFormulas()">
+<select id="category" onchange="renderFormulas()"><option>All</option></select>
+</div>
+<div id="formula-list"></div>
+</section>
+<section id="conversions" class="page"><div id="conversion-list"></div></section>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(id).classList.add('active')}
+function key(v){$('display').value+=v}
+function clearCalc(){$('display').value=''}
+function delCalc(){$('display').value=$('display').value.slice(0,-1)}
+function calculate(){try{let s=$('display').value;if(!/^[0-9+\-*/().MathPIqrt]+$/.test(s))throw 0;let n=Function('"use strict";return ('+s+')')();if(!Number.isFinite(n))throw 0;$('display').value=Number(n.toPrecision(12)).toString()}catch(e){$('display').value='Error'}}
+const formulas=[
+["Mathematics","Area of a rectangle","A = {l} × {w}",["l","w"],(l,w)=>l*w],
+["Mathematics","Perimeter of a rectangle","P = 2({l} + {w})",["l","w"],(l,w)=>2*(l+w)],
+["Mathematics","Area of a triangle","A = ½ × {b} × {h}",["b","h"],(b,h)=>b*h/2],
+["Mathematics","Area of a circle","A = π × {r}²",["r"],r=>Math.PI*r*r],
+["Mathematics","Circumference of a circle","C = 2π × {r}",["r"],r=>2*Math.PI*r],
+["Mathematics","Diameter of a circle","d = 2 × {r}",["r"],r=>2*r],
+["Mathematics","Radius of a circle","r = {d} ÷ 2",["d"],d=>d/2],
+["Mathematics","Volume of a cube","V = {s}³",["s"],s=>s**3],
+["Mathematics","Surface area of a cube","SA = 6 × {s}²",["s"],s=>6*s*s],
+["Mathematics","Volume of a rectangular prism","V = {l} × {w} × {h}",["l","w","h"],(l,w,h)=>l*w*h],
+["Mathematics","Volume of a cylinder","V = π × {r}² × {h}",["r","h"],(r,h)=>Math.PI*r*r*h],
+["Mathematics","Surface area of a cylinder","SA = 2π{r}² + 2π{r} × {h}",["r","h"],(r,h)=>2*Math.PI*r*r+2*Math.PI*r*h],
+["Mathematics","Volume of a sphere","V = ⁴⁄₃π × {r}³",["r"],r=>4/3*Math.PI*r**3],
+["Mathematics","Surface area of a sphere","SA = 4π × {r}²",["r"],r=>4*Math.PI*r*r],
+["Mathematics","Volume of a cone","V = ⅓π × {r}² × {h}",["r","h"],(r,h)=>Math.PI*r*r*h/3],
+["Mathematics","Area of a trapezoid","A = ½ × ({a} + {b}) × {h}",["a","b","h"],(a,b,h)=>(a+b)*h/2],
+["Mathematics","Area of a parallelogram","A = {b} × {h}",["b","h"],(b,h)=>b*h],
+["Mathematics","Area of a rhombus","A = ½ × {d₁} × {d₂}",["d₁","d₂"],(a,b)=>a*b/2],
+["Mathematics","Perimeter of a triangle","P = {a} + {b} + {c}",["a","b","c"],(a,b,c)=>a+b+c],
+["Mathematics","Area of a square","A = {s}²",["s"],s=>s*s],
+["Mathematics","Perimeter of a square","P = 4 × {s}",["s"],s=>4*s],
+["Mathematics","Pythagorean theorem","c = √({a}² + {b}²)",["a","b"],(a,b)=>Math.sqrt(a*a+b*b)],
+["Mathematics","Average of three numbers","x̄ = ({a} + {b} + {c}) ÷ 3",["a","b","c"],(a,b,c)=>(a+b+c)/3],
+["Mathematics","Percentage","P = ({a} ÷ {b}) × 100",["a","b"],(a,b)=>a/b*100],
+["Mathematics","Percentage of a number","R = ({a} × {b}) ÷ 100",["a","b"],(a,b)=>a*b/100],
+["Mathematics","Percent change","P = (({b} − {a}) ÷ {a}) × 100",["a","b"],(a,b)=>(b-a)/a*100],
+["Mathematics","Distance","d = {v} × {t}",["v","t"],(v,t)=>v*t],
+["Mathematics","Speed","v = {d} ÷ {t}",["d","t"],(d,t)=>d/t],
+["Mathematics","Time","t = {d} ÷ {v}",["d","v"],(d,v)=>d/v],
+["Mathematics","Area of an ellipse","A = π × {a} × {b}",["a","b"],(a,b)=>Math.PI*a*b],
+["Mathematics","Circumference of an ellipse (approximation)","C ≈ π[3({a}+{b}) − √(({3a}+{b})({a}+{3b}))]",["a","b"],(a,b)=>Math.PI*(3*(a+b)-Math.sqrt(3*a+b)*Math.sqrt(a+3*b))],
+["Mathematics","Area of a regular polygon","A = ½ × {P} × {a}",["P","a"],(p,a)=>p*a/2],
+["Mathematics","Interior angle sum of a polygon","S = ({n} − 2) × 180",["n"],n=>(n-2)*180],
+["Mathematics","Each interior angle of a regular polygon","θ = (({n} − 2) × 180) ÷ {n}",["n"],n=>(n-2)*180/n],
+["Mathematics","Diagonal of a rectangle","d = √({l}² + {w}²)",["l","w"],(l,w)=>Math.hypot(l,w)],
+["Mathematics","Arc length","s = {r} × {θ}",["r","θ"],(r,t)=>r*t],
+["Mathematics","Sector area","A = ½ × {r}² × {θ}",["r","θ"],(r,t)=>.5*r*r*t],
+["Mathematics","Simple average","x̄ = ({a} + {b}) ÷ 2",["a","b"],(a,b)=>(a+b)/2],
+["Mathematics","Geometric mean","G = √({a} × {b})",["a","b"],(a,b)=>Math.sqrt(a*b)],
+["Mathematics","Harmonic mean of two values","H = 2 × {a} × {b} ÷ ({a} + {b})",["a","b"],(a,b)=>2*a*b/(a+b)],
+["Mathematics","Ratio","R = {a} ÷ {b}",["a","b"],(a,b)=>a/b],
+["Mathematics","Proportion (fourth value)","x = ({b} × {c}) ÷ {a}",["a","b","c"],(a,b,c)=>b*c/a],
+["Mathematics","Absolute difference","d = |{a} − {b}|",["a","b"],(a,b)=>Math.abs(a-b)],
+["Mathematics","Midpoint","M = ({a} + {b}) ÷ 2",["a","b"],(a,b)=>(a+b)/2],
+["Mathematics","Exponential growth","y = {a} × e^({r} × {t})",["a","r","t"],(a,r,t)=>a*Math.exp(r*t)],
+["Mathematics","Exponential decay","y = {a} × e^(−{k} × {t})",["a","k","t"],(a,k,t)=>a*Math.exp(-k*t)],
+["Mathematics","Compound growth","A = {P} × (1 + {r})^{t}",["P","r","t"],(p,r,t)=>p*(1+r)**t],
+["Mathematics","Logarithm change of base","logₐ(b) = ln({b}) ÷ ln({a})",["a","b"],(a,b)=>Math.log(b)/Math.log(a)],
+["Mathematics","Permutation","nPr = {n}! ÷ ({n} − {r})!",["n","r"],(n,r)=>factorial(n)/factorial(n-r)],
+["Mathematics","Combination","nCr = {n}! ÷ ({r}! × ({n} − {r})!)",["n","r"],(n,r)=>factorial(n)/(factorial(r)*factorial(n-r))],
+["Algebra","Slope","m = ({y₂} − {y₁}) ÷ ({x₂} − {x₁})",["y₂","y₁","x₂","x₁"],(y2,y1,x2,x1)=>(y2-y1)/(x2-x1)],
+["Algebra","Slope-intercept equation","y = {m} × {x} + {b}",["m","x","b"],(m,x,b)=>m*x+b],
+["Algebra","Quadratic discriminant","D = {b}² − 4 × {a} × {c}",["b","a","c"],(b,a,c)=>b*b-4*a*c],
+["Algebra","Quadratic formula (positive root)","x = (−{b} + √({b}² − 4 × {a} × {c})) ÷ (2 × {a})",["a","b","c"],(a,b,c)=>(-b+Math.sqrt(b*b-4*a*c))/(2*a)],
+["Algebra","Quadratic formula (negative root)","x = (−{b} − √({b}² − 4 × {a} × {c})) ÷ (2 × {a})",["a","b","c"],(a,b,c)=>(-b-Math.sqrt(b*b-4*a*c))/(2*a)],
+["Algebra","Distance between two points","d = √(({x₂}−{x₁})² + ({y₂}−{y₁})²)",["x₂","x₁","y₂","y₁"],(x2,x1,y2,y1)=>Math.hypot(x2-x1,y2-y1)],
+["Algebra","Midpoint of two points","M = (({x₁}+{x₂})/2, ({y₁}+{y₂})/2)",["x₁","x₂","y₁","y₂"],(x1,x2,y1,y2)=>"("+((x1+x2)/2)+", "+((y1+y2)/2)+")"],
+["Algebra","Point-slope equation","y − {y₁} = {m}(x − {x₁})",["y₁","m","x₁"],(y,m,x)=>"y = "+m+"x + "+(y-m*x)],
+["Algebra","Arithmetic sequence nth term","aₙ = {a₁} + ({n} − 1) × {d}",["a₁","n","d"],(a,n,d)=>a+(n-1)*d],
+["Algebra","Arithmetic series sum","Sₙ = {n}({a₁}+{aₙ}) ÷ 2",["n","a₁","aₙ"],(n,a,b)=>n*(a+b)/2],
+["Algebra","Geometric sequence nth term","aₙ = {a₁} × {r}^({n}−1)",["a₁","r","n"],(a,r,n)=>a*r**(n-1)],
+["Algebra","Geometric series sum","Sₙ = {a₁}(1−{r}^{n}) ÷ (1−{r})",["a₁","r","n"],(a,r,n)=>r===1?a*n:a*(1-r**n)/(1-r)],
+["Algebra","Binomial theorem (single term)","T = n! ÷ (r!(n−r)!) × a^(n−r) × b^r",["n","r","a","b"],(n,r,a,b)=>factorial(n)/(factorial(r)*factorial(n-r))*a**(n-r)*b**r],
+["Algebra","Difference of squares","a² − b² = ({a}−{b})({a}+{b})",["a","b"],(a,b)=>a*a-b*b],
+["Algebra","Sum of cubes","a³ + b³ = ({a}+{b})({a}²−{a}{b}+{b}²)",["a","b"],(a,b)=>a**3+b**3],
+["Algebra","Product of powers","aᵐ × aⁿ = a^(m+n)",["a","m","n"],(a,m,n)=>a**(m+n)],
+["Algebra","Quotient of powers","aᵐ ÷ aⁿ = a^(m−n)",["a","m","n"],(a,m,n)=>a**(m-n)],
+["Algebra","Power of a power","(aᵐ)ⁿ = a^(mn)",["a","m","n"],(a,m,n)=>a**(m*n)],
+["Geometry","Triangle angle sum","A + B + C = 180°",["A","B"],(a,b)=>180-a-b],
+["Geometry","Heron's formula","A = √(s(s−{a})(s−{b})(s−{c}))",["s","a","b","c"],(s,a,b,c)=>Math.sqrt(s*(s-a)*(s-b)*(s-c))],
+["Geometry","Semiperimeter of a triangle","s = ({a} + {b} + {c}) ÷ 2",["a","b","c"],(a,b,c)=>(a+b+c)/2],
+["Geometry","Regular hexagon area","A = (3√3 ÷ 2) × {s}²",["s"],s=>3*Math.sqrt(3)*s*s/2],
+["Geometry","Regular tetrahedron volume","V = {s}³ ÷ (6√2)",["s"],s=>s**3/(6*Math.sqrt(2))],
+["Geometry","Regular tetrahedron surface area","SA = √3 × {s}²",["s"],s=>Math.sqrt(3)*s*s],
+["Geometry","Frustum of a cone volume","V = ⅓πh(R² + Rr + r²)",["R","r","h"],(R,r,h)=>Math.PI*h*(R*R+r*r+R*r)/3],
+["Geometry","Frustum of a pyramid volume","V = h(A₁ + √(A₁A₂) + A₂) ÷ 3",["h","A₁","A₂"],(h,a,b)=>h*(a+Math.sqrt(a*b)+b)/3],
+["Geometry","Torus volume","V = 2π² × {R} × {r}²",["R","r"],(R,r)=>2*Math.PI**2*R*r*r],
+["Geometry","Torus surface area","SA = 4π² × {R} × {r}",["R","r"],(R,r)=>4*Math.PI**2*R*r],
+["Geometry","Parallelogram perimeter","P = 2({a} + {b})",["a","b"],(a,b)=>2*(a+b)],
+["Geometry","Kite area","A = ½ × {d₁} × {d₂}",["d₁","d₂"],(a,b)=>a*b/2],
+["Geometry","Regular polygon exterior angle","θ = 360° ÷ {n}",["n"],n=>360/n],
+["Geometry","Chord length","c = 2r sin(θ/2)",["r","θ"],(r,t)=>2*r*Math.sin(t*Math.PI/360)],
+["Trigonometry","Sine ratio","sin θ = {opposite} ÷ {hypotenuse}",["opposite","hypotenuse"],(o,h)=>o/h],
+["Trigonometry","Cosine ratio","cos θ = {adjacent} ÷ {hypotenuse}",["adjacent","hypotenuse"],(a,h)=>a/h],
+["Trigonometry","Tangent ratio","tan θ = {opposite} ÷ {adjacent}",["opposite","adjacent"],(o,a)=>o/a],
+["Trigonometry","Sine rule (side)","a = b sin(A) ÷ sin(B)",["b","A","B"],(b,A,B)=>b*Math.sin(A*Math.PI/180)/Math.sin(B*Math.PI/180)],
+["Trigonometry","Cosine rule (side)","c = √(a² + b² − 2ab cos(C))",["a","b","C"],(a,b,C)=>Math.sqrt(a*a+b*b-2*a*b*Math.cos(C*Math.PI/180))],
+["Trigonometry","Cosine rule (angle)","C = cos⁻¹((a²+b²−c²) ÷ 2ab)",["a","b","c"],(a,b,c)=>Math.acos((a*a+b*b-c*c)/(2*a*b))*180/Math.PI],
+["Trigonometry","Degrees to radians","R = {D} × π ÷ 180",["D"],d=>d*Math.PI/180],
+["Trigonometry","Radians to degrees","D = {R} × 180 ÷ π",["R"],r=>r*180/Math.PI],
+["Trigonometry","Sine of an angle","sin({θ})",["θ"],t=>Math.sin(t*Math.PI/180)],
+["Trigonometry","Cosine of an angle","cos({θ})",["θ"],t=>Math.cos(t*Math.PI/180)],
+["Trigonometry","Tangent of an angle","tan({θ})",["θ"],t=>Math.tan(t*Math.PI/180)],
+["Trigonometry","Inverse sine","θ = sin⁻¹({x})",["x"],x=>Math.asin(x)*180/Math.PI],
+["Trigonometry","Inverse cosine","θ = cos⁻¹({x})",["x"],x=>Math.acos(x)*180/Math.PI],
+["Trigonometry","Inverse tangent","θ = tan⁻¹({x})",["x"],x=>Math.atan(x)*180/Math.PI],
+["Trigonometry","Law of tangents","(a−b)/(a+b) = tan((A−B)/2) ÷ tan((A+B)/2)",["a","b","A","B"],(a,b,A,B)=>((a-b)/(a+b))-(Math.tan((A-B)*Math.PI/360)/Math.tan((A+B)*Math.PI/360))],
+["Calculus","Power rule derivative","d/dx(xⁿ) = n × x^(n−1)",["n","x"],(n,x)=>n*x**(n-1)],
+["Calculus","Constant multiple derivative","d/dx(c f) = c f′",["c","f"],(c,f)=>c*f],
+["Calculus","Product rule","(fg)′ = f′g + fg′",["f","g","f′","g′"],(f,g,fp,gp)=>fp*g+f*gp],
+["Calculus","Quotient rule","(f/g)′ = (f′g − fg′) ÷ g²",["f","g","f′","g′"],(f,g,fp,gp)=>(fp*g-f*gp)/(g*g)],
+["Calculus","Chain rule","dy/dx = dy/du × du/dx",["dy/du","du/dx"],(a,b)=>a*b],
+["Calculus","Derivative of sine","d/dx(sin x) = cos x",["x"],x=>Math.cos(x)],
+["Calculus","Derivative of cosine","d/dx(cos x) = −sin x",["x"],x=>-Math.sin(x)],
+["Calculus","Derivative of exponential","d/dx(eˣ) = eˣ",["x"],x=>Math.exp(x)],
+["Calculus","Derivative of logarithm","d/dx(ln x) = 1/x",["x"],x=>1/x],
+["Calculus","Derivative of square root","d/dx(√x) = 1/(2√x)",["x"],x=>1/(2*Math.sqrt(x))],
+["Calculus","Definite integral of xⁿ","∫ₐᵇ xⁿ dx = (b^(n+1)−a^(n+1))/(n+1)",["a","b","n"],(a,b,n)=>(b**(n+1)-a**(n+1))/(n+1)],
+["Calculus","Integral of a constant","∫ₐᵇ c dx = c(b−a)",["c","a","b"],(c,a,b)=>c*(b-a)],
+["Calculus","Trapezoidal integration","A ≈ (b−a)(f(a)+f(b)) ÷ 2",["a","b","f(a)","f(b)"],(a,b,fa,fb)=>(b-a)*(fa+fb)/2],
+["Calculus","Average rate of change","m = (f(b)−f(a)) ÷ (b−a)",["f(a)","f(b)","a","b"],(fa,fb,a,b)=>(fb-fa)/(b-a)],
+["Calculus","Euler's method step","yₙ₊₁ = yₙ + h × f(xₙ,yₙ)",["y","h","f"],(y,h,f)=>y+h*f],
+["Physics","Newton's second law","F = {m} × {a}",["m","a"],(m,a)=>m*a],
+["Physics","Weight","W = {m} × {g}",["m","g"],(m,g)=>m*g],
+["Physics","Momentum","p = {m} × {v}",["m","v"],(m,v)=>m*v],
+["Physics","Kinetic energy","KE = ½ × {m} × {v}²",["m","v"],(m,v)=>.5*m*v*v],
+["Physics","Gravitational potential energy","PE = {m} × {g} × {h}",["m","g","h"],(m,g,h)=>m*g*h],
+["Physics","Work","W = {F} × {d}",["F","d"],(f,d)=>f*d],
+["Physics","Power","P = {W} ÷ {t}",["W","t"],(w,t)=>w/t],
+["Physics","Density","ρ = {m} ÷ {V}",["m","V"],(m,v)=>m/v],
+["Physics","Pressure","P = {F} ÷ {A}",["F","A"],(f,a)=>f/a],
+["Physics","Frequency","f = 1 ÷ {T}",["T"],t=>1/t],
+["Physics","Wave speed","v = {f} × {λ}",["f","λ"],(f,l)=>f*l],
+["Physics","Acceleration","a = ({v} − {u}) ÷ {t}",["v","u","t"],(v,u,t)=>(v-u)/t],
+["Physics","Impulse","J = {F} × {Δt}",["F","Δt"],(f,t)=>f*t],
+["Physics","Hooke's law","F = {k} × {x}",["k","x"],(k,x)=>k*x],
+["Physics","Newton's law of universal gravitation","F = G × {m₁} × {m₂} ÷ {r}²",["m₁","m₂","r"],(a,b,r)=>6.6743e-11*a*b/r**2],
+["Physics","Heat energy","Q = {m} × {c} × {ΔT}",["m","c","ΔT"],(m,c,t)=>m*c*t],
+["Physics","Wavelength","λ = {v} ÷ {f}",["v","f"],(v,f)=>v/f],
+["Physics","Ohm's law","V = {I} × {R}",["I","R"],(i,r)=>i*r],
+["Physics","Electrical power","P = {V} × {I}",["V","I"],(v,i)=>v*i],
+["Physics","Electrical energy","E = {P} × {t}",["P","t"],(p,t)=>p*t],
+["Physics","Kinetic energy from momentum","KE = {p}² ÷ (2 × {m})",["p","m"],(p,m)=>p*p/(2*m)],
+["Physics","Centripetal acceleration","a = {v}² ÷ {r}",["v","r"],(v,r)=>v*v/r],
+["Physics","Centripetal force","F = {m} × {v}² ÷ {r}",["m","v","r"],(m,v,r)=>m*v*v/r],
+["Physics","Angular velocity","ω = {θ} ÷ {t}",["θ","t"],(a,t)=>a/t],
+["Physics","Linear velocity","v = {ω} × {r}",["ω","r"],(w,r)=>w*r],
+["Physics","Angular acceleration","α = ({ω₂}−{ω₁}) ÷ {t}",["ω₂","ω₁","t"],(a,b,t)=>(a-b)/t],
+["Physics","Torque","τ = {r} × {F} × sin(θ)",["r","F","θ"],(r,f,t)=>r*f*Math.sin(t*Math.PI/180)],
+["Physics","Rotational kinetic energy","KE = ½ × {I} × {ω}²",["I","ω"],(i,w)=>.5*i*w*w],
+["Physics","Hooke's potential energy","PE = ½ × {k} × {x}²",["k","x"],(k,x)=>.5*k*x*x],
+["Physics","Elastic collision momentum","m₁u₁ + m₂u₂ = m₁v₁ + m₂v₂",["m₁","u₁","m₂","u₂","v₁","v₂"],(m1,u1,m2,u2,v1,v2)=>m1*u1+m2*u2-m1*v1-m2*v2],
+["Physics","Escape velocity","v = √(2GM ÷ r)",["M","r"],(m,r)=>Math.sqrt(2*6.6743e-11*m/r)],
+["Physics","Orbital period","T = 2π√(r³ ÷ GM)",["r","M"],(r,m)=>2*Math.PI*Math.sqrt(r**3/(6.6743e-11*m))],
+["Physics","Kepler's third law","T² = 4π²a³ ÷ GM",["a","M"],(a,m)=>Math.sqrt(4*Math.PI**2*a**3/(6.6743e-11*m))],
+["Physics","Photon energy","E = h × f",["f"],f=>6.62607015e-34*f],
+["Physics","Mass-energy equivalence","E = {m} × c²",["m"],m=>m*299792458**2],
+["Physics","Thermal expansion","ΔL = α × L × ΔT",["α","L","ΔT"],(a,l,t)=>a*l*t],
+["Physics","Ideal gas law (pressure)","P = nRT ÷ V",["n","R","T","V"],(n,r,t,v)=>n*r*t/v],
+["Physics","Buoyant force","Fᵦ = ρ × g × V",["ρ","g","V"],(r,g,v)=>r*g*v],
+["Physics","Fluid pressure","P = ρ × g × h",["ρ","g","h"],(r,g,h)=>r*g*h],
+["Physics","Continuity equation","A₁v₁ = A₂v₂",["A₁","v₁","A₂"],(a,v,b)=>a*v/b],
+["Physics","Bernoulli equation (pressure)","P₂ = P₁ + ½ρ(v₁²−v₂²) + ρg(h₁−h₂)",["P₁","ρ","v₁","v₂","g","h₁","h₂"],(p,r,v1,v2,g,h1,h2)=>p+.5*r*(v1*v1-v2*v2)+r*g*(h1-h2)],
+["Physics","Sound intensity level","β = 10 log₁₀(I ÷ I₀)",["I","I₀"],(i,i0)=>10*Math.log10(i/i0)],
+["Physics","Doppler effect (moving source)","f′ = f × v ÷ (v−vₛ)",["f","v","vₛ"],(f,v,s)=>f*v/(v-s)],
+["Physics","Lens equation","1/f = 1/dₒ + 1/dᵢ",["f","dₒ"],(f,o)=>1/(1/f-1/o)],
+["Physics","Magnification","M = −dᵢ ÷ dₒ",["dᵢ","dₒ"],(i,o)=>-i/o],
+["Physics","Snell's law (refracted angle)","θ₂ = sin⁻¹(n₁ sin θ₁ ÷ n₂)",["n₁","θ₁","n₂"],(n1,t,n2)=>Math.asin(n1*Math.sin(t*Math.PI/180)/n2)*180/Math.PI],
+["Physics","Coulomb's law","F = kq₁q₂ ÷ r²",["q₁","q₂","r"],(a,b,r)=>8.9875517923e9*a*b/r**2],
+["Physics","Electric field","E = F ÷ q",["F","q"],(f,q)=>f/q],
+["Physics","Electric potential","V = W ÷ q",["W","q"],(w,q)=>w/q],
+["Physics","Capacitor energy","E = ½ × C × V²",["C","V"],(c,v)=>.5*c*v*v],
+["Physics","Magnetic force on a wire","F = BIL sin(θ)",["B","I","L","θ"],(b,i,l,t)=>b*i*l*Math.sin(t*Math.PI/180)],
+["Physics","Magnetic flux","Φ = B × A × cos(θ)",["B","A","θ"],(b,a,t)=>b*a*Math.cos(t*Math.PI/180)],
+["Physics","Faraday's law","ε = −N × ΔΦ ÷ Δt",["N","ΔΦ","Δt"],(n,p,t)=>-n*p/t],
+["Physics","Half-life remaining quantity","N = N₀ × (½)^(t/T)",["N₀","t","T"],(n,t,T)=>n*Math.pow(.5,t/T)],
+["Physics","Radioactive decay","N = N₀ × e^(−λt)",["N₀","λ","t"],(n,l,t)=>n*Math.exp(-l*t)],
+["Physics","Wien's displacement law","λmax = b ÷ T",["T"],t=>2.897771955e-3/t],
+["Physics","Stefan–Boltzmann law","P = σ × A × T⁴",["A","T"],(a,t)=>5.670374419e-8*a*t**4],
+["Chemistry","Number of moles","n = {m} ÷ {M}",["m","M"],(m,M)=>m/M],
+["Chemistry","Molar concentration","C = {n} ÷ {V}",["n","V"],(n,v)=>n/v],
+["Chemistry","Mass from moles","m = {n} × {M}",["n","M"],(n,M)=>n*M],
+["Chemistry","Molarity","M = {n} ÷ {V}",["n","V"],(n,v)=>n/v],
+["Chemistry","Ideal gas law (volume)","V = ({n} × {R} × {T}) ÷ {P}",["n","R","T","P"],(n,r,t,p)=>n*r*t/p],
+["Chemistry","Dilution equation (final volume)","V₂ = ({C₁} × {V₁}) ÷ {C₂}",["C₁","V₁","C₂"],(c,v,d)=>c*v/d],
+["Chemistry","Molar mass","M = {m} ÷ {n}",["m","n"],(m,n)=>m/n],
+["Chemistry","Mass percent","% = (mass solute ÷ mass solution) × 100",["solute","solution"],(s,t)=>s/t*100],
+["Chemistry","Mole fraction","χ = {n₁} ÷ ({n₁}+{n₂})",["n₁","n₂"],(a,b)=>a/(a+b)],
+["Chemistry","Partial pressure (Dalton's law)","P₁ = χ₁ × Ptotal",["χ₁","Ptotal"],(x,p)=>x*p],
+["Chemistry","Graham's law (rate ratio)","r₁/r₂ = √(M₂/M₁)",["M₁","M₂"],(a,b)=>Math.sqrt(b/a)],
+["Chemistry","pH","pH = −log₁₀[H⁺]",["H⁺"],h=>-Math.log10(h)],
+["Chemistry","pOH","pOH = −log₁₀[OH⁻]",["OH⁻"],h=>-Math.log10(h)],
+["Chemistry","pH and pOH","pH = 14 − pOH",["pOH"],p=>14-p],
+["Chemistry","Hydrogen ion concentration","[H⁺] = 10^(−pH)",["pH"],p=>10**(-p)],
+["Chemistry","Equilibrium constant","Kc = [C]^c[D]^d ÷ ([A]^a[B]^b)",["A","B","C","D","a","b","c","d"],(A,B,C,D,a,b,c,d)=>C**c*D**d/(A**a*B**b)],
+["Chemistry","Reaction quotient","Q = products ÷ reactants",["products","reactants"],(p,r)=>p/r],
+["Chemistry","Nernst equation (at 25°C)","E = E° − (0.05916 ÷ n)log₁₀(Q)",["E°","n","Q"],(e,n,q)=>e-.05916/n*Math.log10(q)],
+["Chemistry","Beer–Lambert law","A = ε × l × c",["ε","l","c"],(e,l,c)=>e*l*c],
+["Chemistry","Reaction rate","rate = −Δ[A] ÷ Δt",["ΔA","Δt"],(a,t)=>-a/t],
+["Chemistry","Arrhenius equation","k = A × e^(−Ea/RT)",["A","Ea","R","T"],(a,e,r,t)=>a*Math.exp(-e/(r*t))],
+["Chemistry","Heat of reaction","q = m × c × ΔT",["m","c","ΔT"],(m,c,t)=>m*c*t],
+["Chemistry","Calorimetry heat transfer","q = C × ΔT",["C","ΔT"],(c,t)=>c*t],
+["Chemistry","Percent yield","% yield = (actual ÷ theoretical) × 100",["actual","theoretical"],(a,t)=>a/t*100],
+["Chemistry","Atom economy","% = (desired product mass ÷ total reactant mass) × 100",["desired","reactants"],(a,b)=>a/b*100],
+["Chemistry","Empirical formula ratio","ratio = {m} ÷ {M}",["m","M"],(m,M)=>m/M],
+["Chemistry","Mass concentration","C = {m} ÷ {V}",["m","V"],(m,v)=>m/v],
+["Chemistry","Osmotic pressure","π = MRT",["M","R","T"],(m,r,t)=>m*r*t],
+["Chemistry","Henry's law","C = kH × P",["kH","P"],(k,p)=>k*p],
+["Electricity","Electric charge","Q = {I} × {t}",["I","t"],(i,t)=>i*t],
+["Electricity","Electrical resistance","R = {V} ÷ {I}",["V","I"],(v,i)=>v/i],
+["Electricity","Electric current","I = {Q} ÷ {t}",["Q","t"],(q,t)=>q/t],
+["Electricity","Capacitance","C = {Q} ÷ {V}",["Q","V"],(q,v)=>q/v],
+["Electricity","Resistance in series","Rₜ = {R₁} + {R₂} + {R₃}",["R₁","R₂","R₃"],(a,b,c)=>a+b+c],
+["Electricity","Resistance in parallel (two resistors)","Rₜ = ({R₁} × {R₂}) ÷ ({R₁} + {R₂})",["R₁","R₂"],(a,b)=>a*b/(a+b)],
+["Electricity","Resistance in parallel (three resistors)","1/Rₜ = 1/R₁ + 1/R₂ + 1/R₃",["R₁","R₂","R₃"],(a,b,c)=>1/(1/a+1/b+1/c)],
+["Electricity","Electrical power (current and resistance)","P = I² × R",["I","R"],(i,r)=>i*i*r],
+["Electricity","Electrical power (voltage and resistance)","P = V² ÷ R",["V","R"],(v,r)=>v*v/r],
+["Electricity","Electrical energy","E = P × t",["P","t"],(p,t)=>p*t],
+["Electricity","Capacitor energy","E = ½CV²",["C","V"],(c,v)=>.5*c*v*v],
+["Electricity","Capacitors in parallel","Cₜ = C₁ + C₂",["C₁","C₂"],(a,b)=>a+b],
+["Electricity","Capacitors in series","Cₜ = (C₁C₂) ÷ (C₁+C₂)",["C₁","C₂"],(a,b)=>a*b/(a+b)],
+["Electricity","Inductive reactance","Xₗ = 2πfL",["f","L"],(f,l)=>2*Math.PI*f*l],
+["Electricity","Capacitive reactance","Xc = 1 ÷ (2πfC)",["f","C"],(f,c)=>1/(2*Math.PI*f*c)],
+["Electricity","Impedance (series RLC)","Z = √(R² + (Xₗ−Xc)²)",["R","Xₗ","Xc"],(r,x,y)=>Math.hypot(r,x-y)],
+["Electricity","Ohm's law (current)","I = V ÷ R",["V","R"],(v,r)=>v/r],
+["Electricity","Ohm's law (resistance)","R = V ÷ I",["V","I"],(v,i)=>v/i],
+["Electricity","Kirchhoff's current law","I₁ + I₂ = I₃ + I₄",["I₁","I₂","I₃"],(a,b,c)=>a+b-c],
+["Electricity","Transformer voltage ratio","V₂ = V₁ × N₂ ÷ N₁",["V₁","N₂","N₁"],(v,n2,n1)=>v*n2/n1],
+["Electricity","Transformer current ratio","I₂ = I₁ × N₁ ÷ N₂",["I₁","N₁","N₂"],(i,n1,n2)=>i*n1/n2],
+["Finance","Simple interest","I = {P} × {r} × {t}",["P","r","t"],(p,r,t)=>p*r/100*t],
+["Finance","Simple interest total amount","A = {P} × (1 + {r} × {t})",["P","r","t"],(p,r,t)=>p*(1+r/100*t)],
+["Finance","Compound interest","A = {P} × (1 + {r} ÷ {n})^({n} × {t})",["P","r","n","t"],(p,r,n,t)=>p*(1+r/100/n)**(n*t)],
+["Finance","Profit","P = {R} − {C}",["R","C"],(r,c)=>r-c],
+["Finance","Profit margin","M = ({P} ÷ {R}) × 100",["P","R"],(p,r)=>p/r*100],
+["Finance","Markup percentage","M = (markup ÷ cost) × 100",["markup","cost"],(m,c)=>m/c*100],
+["Finance","Discounted price","P = {original} × (1 − {discount} ÷ 100)",["original","discount"],(p,d)=>p*(1-d/100)],
+["Finance","Sales tax","Tax = {price} × {rate} ÷ 100",["price","rate"],(p,r)=>p*r/100],
+["Finance","Price after tax","Total = {price} × (1 + {rate} ÷ 100)",["price","rate"],(p,r)=>p*(1+r/100)],
+["Finance","Return on investment","ROI = (gain − cost) ÷ cost × 100",["gain","cost"],(g,c)=>(g-c)/c*100],
+["Finance","Future value (single deposit)","FV = PV × (1+r)^n",["PV","r","n"],(p,r,n)=>p*(1+r)**n],
+["Finance","Present value","PV = FV ÷ (1+r)^n",["FV","r","n"],(f,r,n)=>f/(1+r)**n],
+["Finance","Loan payment","PMT = P × r ÷ (1−(1+r)^−n)",["P","r","n"],(p,r,n)=>p*r/(1-(1+r)**(-n))],
+["Finance","Debt-to-income ratio","DTI = debt ÷ income × 100",["debt","income"],(d,i)=>d/i*100],
+["Finance","Break-even quantity","Q = fixed cost ÷ (price − variable cost)",["fixed","price","variable"],(f,p,v)=>f/(p-v)],
+["Statistics","Mean of three values","x̄ = ({a} + {b} + {c}) ÷ 3",["a","b","c"],(a,b,c)=>(a+b+c)/3],
+["Statistics","Range","R = {max} − {min}",["max","min"],(a,b)=>a-b],
+["Statistics","Variance from standard deviation","σ² = {σ}²",["σ"],s=>s*s],
+["Statistics","Z-score","z = ({x} − {μ}) ÷ {σ}",["x","μ","σ"],(x,m,s)=>(x-m)/s],
+["Statistics","Population variance (two values)","σ² = ((x₁−μ)²+(x₂−μ)²) ÷ 2",["x₁","x₂","μ"],(a,b,m)=>((a-m)**2+(b-m)**2)/2],
+["Statistics","Standard deviation from variance","σ = √({σ²})",["σ²"],v=>Math.sqrt(v)],
+["Statistics","Coefficient of variation","CV = σ ÷ μ × 100",["σ","μ"],(s,m)=>s/m*100],
+["Statistics","Weighted mean","x̄ = Σ(wx) ÷ Σw",["wx","w"],(a,b)=>a/b],
+["Statistics","Standard error","SE = σ ÷ √n",["σ","n"],(s,n)=>s/Math.sqrt(n)],
+["Statistics","Sample proportion","p̂ = x ÷ n",["x","n"],(x,n)=>x/n],
+["Statistics","Margin of error","ME = z × σ ÷ √n",["z","σ","n"],(z,s,n)=>z*s/Math.sqrt(n)],
+["Statistics","Covariance (two observations)","Cov = ((x₁−x̄)(y₁−ȳ)+(x₂−x̄)(y₂−ȳ)) ÷ 2",["x₁","x̄","y₁","ȳ","x₂","y₂"],(x,m,y,n,a,b)=>((x-m)*(y-n)+(a-m)*(b-n))/2],
+["Statistics","Pearson correlation coefficient","r = covariance ÷ (σx × σy)",["covariance","σx","σy"],(c,x,y)=>c/(x*y)],
+["Statistics","Linear regression prediction","y = {a} + {b} × {x}",["a","b","x"],(a,b,x)=>a+b*x],
+["Statistics","Bayes' theorem","P(A|B) = P(B|A)P(A) ÷ P(B)",["P(B|A)","P(A)","P(B)"],(a,b,c)=>a*b/c],
+["Probability","Probability of an event","P(A) = favorable ÷ total",["favorable","total"],(a,b)=>a/b],
+["Probability","Complement probability","P(not A) = 1 − P(A)",["P(A)"],p=>1-p],
+["Probability","Independent events","P(A and B) = P(A) × P(B)",["P(A)","P(B)"],(a,b)=>a*b],
+["Probability","Mutually exclusive events","P(A or B) = P(A) + P(B)",["P(A)","P(B)"],(a,b)=>a+b],
+["Probability","Conditional probability","P(A|B) = P(A and B) ÷ P(B)",["P(A and B)","P(B)"],(a,b)=>a/b],
+["Probability","Expected value (two outcomes)","E(X) = x₁p₁ + x₂p₂",["x₁","p₁","x₂","p₂"],(a,b,c,d)=>a*b+c*d],
+["Probability","Binomial probability","P(X=k) = nCk × p^k × (1−p)^(n−k)",["n","k","p"],(n,k,p)=>factorial(n)/(factorial(k)*factorial(n-k))*p**k*(1-p)**(n-k)],
+["Probability","Poisson probability","P(X=k) = e^(−λ)λ^k ÷ k!",["λ","k"],(l,k)=>Math.exp(-l)*l**k/factorial(k)],
+["Probability","Uniform distribution mean","μ = ({a} + {b}) ÷ 2",["a","b"],(a,b)=>(a+b)/2],
+["Probability","Uniform distribution variance","σ² = ({b}−{a})² ÷ 12",["a","b"],(a,b)=>(b-a)**2/12],
+["Engineering","Mechanical advantage","MA = {Fₒ} ÷ {Fᵢ}",["Fₒ","Fᵢ"],(o,i)=>o/i],
+["Engineering","Efficiency","η = ({output} ÷ {input}) × 100",["output","input"],(o,i)=>o/i*100],
+["Engineering","Volumetric flow rate","Q = {V} ÷ {t}",["V","t"],(v,t)=>v/t],
+["Engineering","Torque","τ = {F} × {r}",["F","r"],(f,r)=>f*r],
+["Engineering","Stress","σ = {F} ÷ {A}",["F","A"],(f,a)=>f/a],
+["Engineering","Strain","ε = {ΔL} ÷ {L}",["ΔL","L"],(d,l)=>d/l],
+["Engineering","Young's modulus","E = stress ÷ strain",["stress","strain"],(s,e)=>s/e],
+["Engineering","Beam bending stress","σ = My ÷ I",["M","y","I"],(m,y,i)=>m*y/i],
+["Engineering","Shear stress","τ = F ÷ A",["F","A"],(f,a)=>f/a],
+["Engineering","Hydraulic power","P = pressure × flow rate",["pressure","flow"],(p,q)=>p*q],
+["Engineering","Reynolds number","Re = ρvD ÷ μ",["ρ","v","D","μ"],(r,v,d,m)=>r*v*d/m],
+["Engineering","Darcy–Weisbach pressure loss","ΔP = f(L/D)(ρv²/2)",["f","L","D","ρ","v"],(f,l,d,r,v)=>f*l/d*r*v*v/2],
+["Engineering","Heat transfer rate","Q = U × A × ΔT",["U","A","ΔT"],(u,a,t)=>u*a*t],
+["Engineering","Thermal resistance","R = L ÷ (kA)",["L","k","A"],(l,k,a)=>l/(k*a)],
+["Engineering","Gear ratio","GR = teeth driven ÷ teeth driver",["driven","driver"],(a,b)=>a/b],
+["Engineering","Mechanical work","W = F × d",["F","d"],(f,d)=>f*d],
+["Engineering","Power from torque","P = τ × ω",["τ","ω"],(t,w)=>t*w],
+["Engineering","Buckling load (Euler)","Pcr = π²EI ÷ L²",["E","I","L"],(e,i,l)=>Math.PI**2*e*i/l**2],
+["Engineering","Specific weight","γ = ρ × g",["ρ","g"],(r,g)=>r*g],
+["Astronomy","Kepler's third law (solar units)","P² = a³",["a"],a=>Math.sqrt(a**3)],
+["Astronomy","Distance from parallax","d = 1 ÷ p",["p"],p=>1/p],
+["Astronomy","Light travel time","t = d ÷ c",["d"],d=>d/299792458],
+["Astronomy","Luminosity from flux","L = 4πd²F",["d","F"],(d,f)=>4*Math.PI*d*d*f],
+["Astronomy","Flux from luminosity","F = L ÷ (4πd²)",["L","d"],(l,d)=>l/(4*Math.PI*d*d)],
+["Astronomy","Schwarzschild radius","Rs = 2GM ÷ c²",["M"],m=>2*6.6743e-11*m/299792458**2],
+["Astronomy","Redshift","z = (λobserved − λrest) ÷ λrest",["observed","rest"],(o,r)=>(o-r)/r],
+["Astronomy","Hubble's law","v = H₀ × d",["H₀","d"],(h,d)=>h*d],
+["Astronomy","Apparent magnitude distance modulus","m − M = 5log₁₀(d) − 5",["M","d"],(M,d)=>M+5*Math.log10(d)-5],
+["Astronomy","Blackbody peak wavelength","λmax = 2.898×10⁻³ ÷ T",["T"],t=>2.898e-3/t],
+["Biology","Population growth","N = N₀ × e^(rt)",["N₀","r","t"],(n,r,t)=>n*Math.exp(r*t)],
+["Biology","Exponential population doubling time","T = ln(2) ÷ r",["r"],r=>Math.LN2/r],
+["Biology","BMI","BMI = mass ÷ height²",["mass","height"],(m,h)=>m/(h*h)],
+["Biology","Surface area to volume ratio (sphere)","SA/V = 3 ÷ r",["r"],r=>3/r],
+["Biology","Hardy–Weinberg heterozygous frequency","2pq = 2 × {p} × {q}",["p","q"],(p,q)=>2*p*q],
+["Biology","Hardy–Weinberg homozygous dominant","p² = {p}²",["p"],p=>p*p],
+["Biology","Hardy–Weinberg homozygous recessive","q² = {q}²",["q"],q=>q*q]
+];
+function factorial(n){if(!Number.isInteger(n)||n<0||n>170)return NaN;let r=1;for(let i=2;i<=n;i++)r*=i;return r}
+const categories=[...new Set(formulas.map(f=>f[0]))].sort();
+categories.forEach(c=>{const o=document.createElement('option');o.textContent=c;$('category').appendChild(o)});
+function renderFormulas(){
+const list=$('formula-list');list.innerHTML='';
+const search=$('search').value.toLowerCase(),category=$('category').value;
+formulas.forEach(f=>{
+if(category!=='All'&&f[0]!==category)return;
+if(!(f[0]+' '+f[1]+' '+f[2]).toLowerCase().includes(search))return;
+const card=document.createElement('div');card.className='formula';
+const head=document.createElement('div');head.className='formula-head';
+const name=document.createElement('span');name.className='formula-name';name.textContent=f[1];head.appendChild(name);
+const equation=document.createElement('div');equation.className='equation';
+const inputMap={},variableInputs={};
+const variables=[...new Set(f[3])].sort((a,b)=>b.length-a.length);
+function addInput(variable){
+const input=document.createElement('input');
+input.type='text';input.inputMode='decimal';input.placeholder=variable;input.setAttribute('aria-label',variable);input.autocomplete='off';input.spellcheck=false;input.readOnly=false;input.disabled=false;input.tabIndex=0;input.dataset.variable=variable;input.style.width=Math.max(48,variable.length*10+18)+'px';
+if(!inputMap[variable])inputMap[variable]=input;
+if(!variableInputs[variable])variableInputs[variable]=[];
+variableInputs[variable].push(input);
+input.addEventListener('input',()=>variableInputs[variable].forEach(other=>{if(other!==input)other.value=input.value}));
+equation.appendChild(input);
+}
+function addTextWithInputs(text){
+let i=0,buffer='';
+while(i<text.length){
+let found=null;
+for(const variable of variables){
+if(!text.startsWith(variable,i))continue;
+const before=i>0?Array.from(text.slice(0,i)).pop():'';
+const after=Array.from(text.slice(i+variable.length))[0]||'';
+const isWord=ch=>!!ch&&/[\p{L}\p{N}]/u.test(ch)&&!/[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/u.test(ch);
+if(isWord(before)||isWord(after))continue;
+found=variable;
+break;
+}
+if(found){
+if(buffer){equation.appendChild(document.createTextNode(buffer));buffer=''}
+addInput(found);
+i+=found.length;
+}else{
+const char=Array.from(text.slice(i))[0];
+buffer+=char;
+i+=char.length;
+}
+}
+if(buffer)equation.appendChild(document.createTextNode(buffer));
+}
+const parts=f[2].split(/(\{[^}]+\})/g);
+parts.forEach(part=>{
+const match=part.match(/^\{(.+)\}$/);
+if(match){
+addInput(match[1]);
+}else{
+addTextWithInputs(part);
+}
+});
+variables.forEach(variable=>{
+if(!inputMap[variable]){
+equation.appendChild(document.createTextNode(' '+variable+' = '));
+addInput(variable);
+}
+});
+head.appendChild(equation);
+const button=document.createElement('button');button.textContent='Calculate';
+const result=document.createElement('div');result.className='result';
+button.onclick=()=>{
+const values=f[3].map(v=>inputMap[v]?.value.trim()??'');
+if(values.some(v=>v===''||!Number.isFinite(Number(v)))){result.textContent='Enter all values';return}
+try{const answer=f[4](...values.map(Number));result.textContent=typeof answer==='number'&&Number.isFinite(answer)?'Result: '+Number(answer.toPrecision(10)):String(answer)}catch(e){result.textContent='Error'}
+};
+card.append(head,button,result);list.appendChild(card);
+});
+}
+const conversions=[
+["Length","Meters","Kilometers",.001],["Length","Meters","Centimeters",100],["Length","Meters","Millimeters",1000],["Length","Meters","Micrometers",1e6],["Length","Meters","Nanometers",1e9],["Length","Meters","Miles",1/1609.344],["Length","Meters","Nautical miles",1/1852],["Length","Meters","Feet",3.28084],["Length","Meters","Inches",39.3701],["Length","Meters","Yards",1.09361],["Length","Meters","Fathoms",.546807],["Length","Meters","Astronomical units",1/149597870700],["Length","Meters","Light years",1/9.460730472e15],["Length","Meters","Parsecs",1/3.085677581e16],
+["Mass","Kilograms","Grams",1000],["Mass","Kilograms","Milligrams",1e6],["Mass","Kilograms","Micrograms",1e9],["Mass","Kilograms","Metric tonnes",.001],["Mass","Kilograms","Pounds",2.20462],["Mass","Kilograms","Ounces",35.274],["Mass","Kilograms","Stones",.157473],["Mass","Kilograms","Carats",5000],["Mass","Kilograms","Atomic mass units",6.02214076e26],
+["Time","Seconds","Milliseconds",1000],["Time","Seconds","Microseconds",1e6],["Time","Seconds","Nanoseconds",1e9],["Time","Seconds","Minutes",1/60],["Time","Seconds","Hours",1/3600],["Time","Seconds","Days",1/86400],["Time","Seconds","Weeks",1/604800],["Time","Seconds","Years (365 days)",1/31536000],
+["Speed","Meters/second","Kilometers/hour",3.6],["Speed","Meters/second","Miles/hour",2.23694],["Speed","Meters/second","Feet/second",3.28084],["Speed","Meters/second","Knots",1.94384],
+["Acceleration","Meters/second²","Feet/second²",3.28084],["Acceleration","Meters/second²","Galileos",100],
+["Area","Square meters","Square kilometers",.000001],["Area","Square meters","Square centimeters",10000],["Area","Square meters","Square millimeters",1e6],["Area","Square meters","Square feet",10.7639],["Area","Square meters","Square inches",1550],["Area","Square meters","Acres",.000247105],["Area","Square meters","Hectares",.0001],["Area","Square meters","Square miles",3.86102e-7],
+["Volume","Liters","Milliliters",1000],["Volume","Liters","Microliters",1e6],["Volume","Liters","Cubic meters",.001],["Volume","Liters","Cubic centimeters",1000],["Volume","Liters","Cubic feet",.0353147],["Volume","Liters","Cubic inches",61.0237],["Volume","Liters","US gallons",.264172],["Volume","Liters","US quarts",1.05669],["Volume","Liters","US pints",2.11338],["Volume","Liters","US cups",4.22675],["Volume","Liters","US fluid ounces",33.814],["Volume","Liters","Imperial gallons",.219969],["Volume","Liters","Tablespoons (US)",67.628],["Volume","Liters","Teaspoons (US)",202.884],
+["Pressure","Pascals","Kilopascals",.001],["Pressure","Pascals","Megapascals",1e-6],["Pressure","Pascals","Bar",1e-5],["Pressure","Pascals","Millibar",.01],["Pressure","Pascals","Atmospheres",1/101325],["Pressure","Pascals","Torr",1/133.322368],["Pressure","Pascals","PSI",.000145038],["Pressure","Pascals","Pounds per square foot",.0208854],
+["Energy","Joules","Kilojoules",.001],["Energy","Joules","Megajoules",1e-6],["Energy","Joules","Calories",.239006],["Energy","Joules","Kilocalories",.000239006],["Energy","Joules","Watt-hours",1/3600],["Energy","Joules","Kilowatt-hours",1/3600000],["Energy","Joules","Electronvolts",6.241509e18],["Energy","Joules","British thermal units",.000947817],["Energy","Joules","Foot-pounds",.737562],
+["Power","Watts","Kilowatts",.001],["Power","Watts","Megawatts",1e-6],["Power","Watts","Horsepower",.00134102],["Power","Watts","Metric horsepower",.00135962],["Power","Watts","BTU/hour",3.41214],
+["Frequency","Hertz","Kilohertz",.001],["Frequency","Hertz","Megahertz",1e-6],["Frequency","Hertz","Gigahertz",1e-9],["Frequency","Hertz","Revolutions per minute",60],
+["Angle","Degrees","Radians",Math.PI/180],["Angle","Degrees","Gradians",10/9],["Angle","Degrees","Arcminutes",60],["Angle","Degrees","Arcseconds",3600],["Angle","Degrees","Turns",1/360],
+["Data","Bytes","Bits",8],["Data","Bytes","Kilobytes (decimal)",.001],["Data","Bytes","Megabytes (decimal)",1e-6],["Data","Bytes","Gigabytes (decimal)",1e-9],["Data","Bytes","Terabytes (decimal)",1e-12],["Data","Bytes","Kibibytes",1/1024],["Data","Bytes","Mebibytes",1/1048576],["Data","Bytes","Gibibytes",1/1073741824],["Data","Bytes","Tebibytes",1/1099511627776],
+["Fuel economy","Kilometers/liter","Miles/gallon (US)",2.35215],["Fuel economy","Liters/100 km","Miles/gallon (US)",235.215],
+["Density","Kilograms/m³","Grams/cm³",.001],["Density","Kilograms/m³","Grams/liter",1],["Density","Kilograms/m³","Pounds/ft³",.062428],
+["Force","Newtons","Kilonewtons",.001],["Force","Newtons","Millinewtons",1000],["Force","Newtons","Pound-force",.224809],["Force","Newtons","Kilogram-force",.101972],["Force","Newtons","Dynes",1e5],
+["Torque","Newton-meters","Pound-feet",.737562],["Torque","Newton-meters","Pound-inches",8.85075],
+["Electricity","Amperes","Milliamperes",1000],["Electricity","Amperes","Microamperes",1e6],["Electricity","Volts","Millivolts",1000],["Electricity","Ohms","Kiloohms",.001],["Electricity","Ohms","Megaohms",1e-6],["Electricity","Farads","Microfarads",1e6],["Electricity","Farads","Nanofarads",1e9],["Electricity","Farads","Picofarads",1e12],
+["Temperature","Celsius","Fahrenheit",null,v=>v*9/5+32],["Temperature","Fahrenheit","Celsius",null,v=>(v-32)*5/9],["Temperature","Celsius","Kelvin",null,v=>v+273.15],["Temperature","Kelvin","Celsius",null,v=>v-273.15],["Temperature","Fahrenheit","Kelvin",null,v=>(v-32)*5/9+273.15],["Temperature","Kelvin","Fahrenheit",null,v=>(v-273.15)*9/5+32]
+];
+function renderConversions(){
+const list=$('conversion-list');list.innerHTML='';
+const groups={};conversions.forEach(c=>(groups[c[0]]??=[]).push(c));
+Object.entries(groups).forEach(([group,items])=>{
+const section=document.createElement('div');section.className='conversion';
+const title=document.createElement('h3');title.textContent=group;section.appendChild(title);
+items.forEach(c=>{
+const row=document.createElement('div');row.style.margin='8px 0';
+const input=document.createElement('input');input.type='text';input.inputMode='decimal';input.placeholder='x';input.autocomplete='off';input.spellcheck=false;input.readOnly=false;input.disabled=false;input.tabIndex=0;
+const from=document.createElement('span');from.textContent=' '+c[1]+' = ';
+const output=document.createElement('span');output.textContent='—';
+const to=document.createElement('span');to.textContent=' '+c[2];
+input.addEventListener('input',()=>{const raw=input.value.trim();if(raw===''||!Number.isFinite(Number(raw))){output.textContent='—';return}const value=c[4]?c[4](Number(raw)):Number(raw)*c[3];output.textContent=Number.isFinite(value)?Number(value.toPrecision(9)):'—'});
+row.append(input,from,output,to);section.appendChild(row);
+});
+list.appendChild(section);
+});
+}
+renderFormulas();renderConversions();
+</script>
+</body>
+</html>
